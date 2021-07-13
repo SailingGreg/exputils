@@ -18,6 +18,9 @@ from openpyxl.utils import get_column_letter
 #from openpyxl.styles import Font
 from openpyxl.styles import Color, PatternFill, Font, Border
 from openpyxl.styles import Alignment
+# added for conditional shading
+from openpyxl.styles import colors
+from openpyxl.formatting.rule import ColorScaleRule
 
 # columns for TWS and TWA
 TWSCOL = 4
@@ -61,6 +64,7 @@ rownum = 0
 # need to externalised these
 # define the colours for shading
 # see https://www.rapidtables.com/web/color/RGB_Color.html
+# and colours taken from windy - https://community.windy.com/topic/8748/wind-speed-values-on-map/3
 Bft1Fill = PatternFill(start_color='778899', end_color='778899', fill_type='solid')
 Bft2Fill = PatternFill(start_color='87CEFA', end_color='87CEFA', fill_type='solid')
 Bft3Fill = PatternFill(start_color='00BFFF', end_color='00BFFF', fill_type='solid')
@@ -72,7 +76,7 @@ Bft8Fill = PatternFill(start_color='DC143C', end_color='DC143C', fill_type='soli
 Bft9Fill = PatternFill(start_color='DB7093', end_color='DB7093', fill_type='solid')
 Bft10Fill = PatternFill(start_color='DC143C', end_color='DC143C', fill_type='solid')
 
-colours = Bft1Fill, Bft2Fill, Bft3Fill, Bft3Fill, Bft5Fill, Bft6Fill, Bft7Fill, Bft8Fill, Bft9Fill
+colours = Bft1Fill, Bft2Fill, Bft3Fill, Bft4Fill, Bft5Fill, Bft6Fill, Bft7Fill, Bft8Fill, Bft9Fill, Bft10Fill
 # add - list of dicts
 Winds = [
     {'low': 0.0, 'high': 4.0, 'fill': Bft1Fill}, # 1
@@ -87,6 +91,7 @@ Winds = [
 ]
 
 # Hours is a copy of BFT for now - tweak later
+# Excel conditional shading defaults to 3 coolurs red, yellow and green
 Hours = [
     {'low': 0.0, 'high': 0.5, 'fill': Bft1Fill}, # 1
     {'low': 0.5, 'high': 1.0, 'fill': Bft2Fill}, # 2
@@ -126,12 +131,22 @@ cols = 18
 Times = [[0.0] * cols for i in range(rows)] 
 
 # shade based on hours
-def shade(val):
+def shadeHrs(val):
     for hr in Hours:
         if (val >= hr["low"] and val < hr["high"]):
             return (hr["fill"]);
             #continue;
-# end shade
+    #return 'black'
+# end shadeHrs
+
+# function for shading wind
+def shadeWind(wind):
+    for bft in Winds:
+        if (wind >= bft["low"] and wind < bft["high"]):
+            return (bft["fill"]);
+            #continue;
+    #return 'black'
+# end shadeWind
 
 # the boundaries for the tws/twas area of the csv file
 firstRow = 8
@@ -141,11 +156,15 @@ lastCol = 18
 #dateDelta = timedelta(days=0, hours=0, minutes=0, seconds=0)
 # iterate over all the rows in the csv file
 for row_index, row in enumerate(reader):
-    totWind = 0
+    rowHrs = 0
+    offset = 0;
     col = 0 # used to count output columns
     for column_index, cell in enumerate(row):
         #if (column_index >= 15 and column_index <= 28): # skip Rain/MSLP
         #    continue
+        if (column_index == 1 or column_index == 2): # skip twa of 10 & 20
+            offset = offset - 1;
+            continue;
 
         if (cell.isnumeric()): # doesn't cover '.'
             cell = int(cell)
@@ -162,31 +181,53 @@ for row_index, row in enumerate(reader):
                 column_letter = get_column_letter((column_index + 1))
 
                 cell = float(cell)
-                totWind = totWind + cell
+                rowHrs = rowHrs + cell
 
                 Times[row_index - 9][col - 1] = cell
 
-        if (isinstance(cell, float) and column_index > 0): # should add > col 0 so only values
+        if (isinstance(cell, float)): # should add > col 0 so only values
             if (cell > 0.0): # only copy if non-zero & round to 1 decimal place
-                exSheet.cell((row_index + 1), (column_index + 1)).value = round(cell, 1)
-                exSheet.cell((row_index + 1), (column_index + 1)).fill = shade(cell)
+                # note we can still get a '0.0' as 0.01 is still larger than 0!
+                exSheet.cell((row_index + 1), (column_index + offset + 1)).value = cell
+                #exSheet.cell((row_index + 1), (column_index + 1)).value = round(cell, 1)
+                exSheet.cell((row_index + 1), (column_index + offset + 1)).number_format = '0.0'
+                if (column_index > 0):
+                    # shade the wind based on hours
+                    exSheet.cell((row_index + 1), (column_index + offset + 1)).fill = shadeHrs(cell)
+                else:
+                    # BFT shade the TWS on the left
+                    exSheet.cell((row_index + 1), (column_index + offset + 1)).fill = shadeWind(cell)
         else:
-            exSheet.cell((row_index + 1), (column_index + 1)).value = cell
+            exSheet.cell((row_index + 1), (column_index + offset + 1)).value = cell
         #exSheet.cell('%s%s'%(column_letter, (row_index + 1))).value = cell
 
-    # now we've processed a row if a filt row add the total hours to the right
+    # now we've processed a row, if a filt row add the total hours to the right
     if (row_index > firstRow and row_index < lastRow): # the filtered data
-        exSheet.cell((row_index + 1), (column_index + 1 + 1)).value = totWind
-        exSheet.cell((row_index + 1), (column_index + 1 + 1)).number_format = '0.0'
-        exSheet.cell((row_index + 1), (column_index + 1 + 1)).fill = shade(totWind)
+        if (rowHrs > 0.0): # only add if there is a value
+            exSheet.cell((row_index + 1), (column_index + offset + 1 + 1)).value = rowHrs
+            exSheet.cell((row_index + 1), (column_index + offset + 1 + 1)).number_format = '0.0'
+            exSheet.cell((row_index + 1), (column_index + offset + 1 + 1)).fill = shadeHrs(rowHrs)
         # and add to total
-        totHours = totHours + totWind
+        totHours = totHours + rowHrs
 
     #print (totWind)
-# add total hours to the lower right & shade
-exSheet.cell((lastRow + 1), (lastCol + 1 + 1)).value = totHours
-exSheet.cell((lastRow + 1), (lastCol + 1 + 1)).number_format = '0.0'
-exSheet.cell((lastRow + 1), (lastCol + 1 + 1)).fill = shade(totHours)
+# end of filtered data - conditional shading of green, yellow, red
+rule = ColorScaleRule(start_type='percentile', start_value=1, start_color=colors.COLOR_INDEX[3],
+                         mid_type='percentile', mid_value=50, mid_color=colors.COLOR_INDEX[5],
+                                     end_type='percentile', end_value=99, end_color=colors.COLOR_INDEX[2])
+# apply to filtered and totals separately
+exSheet.conditional_formatting.add("B10:Q49", rule)
+exSheet.conditional_formatting.add("R10:R49", rule)
+
+# add total hours to the lower right
+exSheet.cell((lastRow + 1), (lastCol + offset + 1)).value = totHours
+exSheet.cell((lastRow + 1), (lastCol + offset + 1)).number_format = '0.0'
+# don't shade to avoid confusion
+#exSheet.cell((lastRow + 1), (lastCol + 1 + 1)).fill = shadeHrs(totHours)
+
+#
+# a lot of the following is in the expedition summary and therefore could be removed
+#
 
 # define an array of 6 x 6 for the Summ
 Summ = [[0.0] * 6 for i in range(6)]
@@ -290,6 +331,10 @@ for row in range(40):
 
 exSheet.cell((rowoff + 6), (coloff + 6)).value = totHrs
 exSheet.cell((rowoff + 6), (coloff + 6)).number_format = '0.00'
+
+# do conditional formatting for the summaries
+exSheet.conditional_formatting.add("E53:J58", rule)
+exSheet.conditional_formatting.add("E63:J68", rule)
 print (f"Total hours {totHrs}")
 
 
