@@ -1,7 +1,8 @@
 #
 # Analysis the Expedition routing file and grade wind and angles
 #
-# this read the filtered output file and summarises
+# this reads the filtered output file and summarises
+# file should be saved with TWS steps of 1 and TWA steps of 10
 #
 
 import os
@@ -85,6 +86,19 @@ Winds = [
     {'low': 41.0, 'high': 48.0, 'fill': Bft9Fill}
 ]
 
+# Hours is a copy of BFT for now - tweak later
+Hours = [
+    {'low': 0.0, 'high': 0.5, 'fill': Bft1Fill}, # 1
+    {'low': 0.5, 'high': 1.0, 'fill': Bft2Fill}, # 2
+    {'low': 1.0, 'high': 2.0, 'fill': Bft3Fill}, # 3
+    {'low': 2.0, 'high': 4.0, 'fill': Bft4Fill},
+    {'low': 4.0, 'high': 8.0, 'fill': Bft5Fill},
+    {'low': 8.0, 'high': 16.0, 'fill': Bft6Fill},
+    {'low': 16.0, 'high': 32.0, 'fill': Bft7Fill},
+    {'low': 32.0, 'high': 64.0, 'fill': Bft8Fill},
+    {'low': 64.0, 'high': 128.0, 'fill': Bft9Fill}
+]
+
 dateDelta = timedelta(days=0, hours=0, minutes=0, seconds=0)
 Angles = [
     {"low": 0, "high": 30, "tot": 0, "percent": 0}, # high
@@ -95,6 +109,7 @@ Angles = [
     {"low": 150, "high": 180, "tot": 0, "percent": 0} # running
 ]
 
+totHours = 0.0
 twsTotal = 0.0
 twsCnt = 0
 offset = 0
@@ -110,7 +125,21 @@ rows = 40
 cols = 18
 Times = [[0.0] * cols for i in range(rows)] 
 
+# shade based on hours
+def shade(val):
+    for hr in Hours:
+        if (val >= hr["low"] and val < hr["high"]):
+            return (hr["fill"]);
+            #continue;
+# end shade
+
+# the boundaries for the tws/twas area of the csv file
+firstRow = 8
+lastRow = 49
+lastCol = 18
+
 #dateDelta = timedelta(days=0, hours=0, minutes=0, seconds=0)
+# iterate over all the rows in the csv file
 for row_index, row in enumerate(reader):
     totWind = 0
     col = 0 # used to count output columns
@@ -122,7 +151,7 @@ for row_index, row in enumerate(reader):
             cell = int(cell)
 
         # we assume wind range is 1 to 40
-        if (row_index > 8 and row_index < 49): # the filter data
+        if (row_index > firstRow and row_index < lastRow): # the filter data
             #
             if (column_index == 0): # label
                 cell = float(cell)
@@ -137,21 +166,27 @@ for row_index, row in enumerate(reader):
 
                 Times[row_index - 9][col - 1] = cell
 
-                # shade TWS based on wind strenght
-                #for bft in Winds:
-                    #if (cell >= bft["low"] and cell < bft["high"]):
-                        #exSheet.cell((row_index + 1), (column_index + 1)).fill = bft["fill"]
-                        #continue;
-
-        exSheet.cell((row_index + 1), (column_index + 1)).value = cell
+        if (isinstance(cell, float) and column_index > 0): # should add > col 0 so only values
+            if (cell > 0.0): # only copy if non-zero & round to 1 decimal place
+                exSheet.cell((row_index + 1), (column_index + 1)).value = round(cell, 1)
+                exSheet.cell((row_index + 1), (column_index + 1)).fill = shade(cell)
+        else:
+            exSheet.cell((row_index + 1), (column_index + 1)).value = cell
         #exSheet.cell('%s%s'%(column_letter, (row_index + 1))).value = cell
 
-    # now we've processed a row if a filt row add the total hours
-    if (row_index > 8 and row_index < 49): # the filter data
-        exSheet.cell((row_index + 1), (column_index + 1 + 2)).value = totWind
-        exSheet.cell((row_index + 1), (column_index + 1 + 2)).number_format = '0.000'
+    # now we've processed a row if a filt row add the total hours to the right
+    if (row_index > firstRow and row_index < lastRow): # the filtered data
+        exSheet.cell((row_index + 1), (column_index + 1 + 1)).value = totWind
+        exSheet.cell((row_index + 1), (column_index + 1 + 1)).number_format = '0.0'
+        exSheet.cell((row_index + 1), (column_index + 1 + 1)).fill = shade(totWind)
+        # and add to total
+        totHours = totHours + totWind
 
     #print (totWind)
+# add total hours to the lower right & shade
+exSheet.cell((lastRow + 1), (lastCol + 1 + 1)).value = totHours
+exSheet.cell((lastRow + 1), (lastCol + 1 + 1)).number_format = '0.0'
+exSheet.cell((lastRow + 1), (lastCol + 1 + 1)).fill = shade(totHours)
 
 # define an array of 6 x 6 for the Summ
 Summ = [[0.0] * 6 for i in range(6)]
