@@ -46,11 +46,11 @@ This would allow the nav to have 2 pages, one with position data
 profilesext = {
      "helm": {  1: {"variable": "BSP", "label": "", "index": 1},
         2: {"variable": "TargBspN", "label": "TRG", "index": 54},
-        3: {"variable": "MarkRng", "label": "", "index": 105},
-        4:  {"variable": "MarkBrg", "label": "", "index": 106}  },
+        3: {"variable": "MarkRng", "label": "Range", "index": 105},
+        4:  {"variable": "MarkBrg", "label": "Bearing", "index": 106}  },
      "trim": { 1: {"variable": "BSP", "label": "", "index": 1},
         2: {"variable": "HeadingToSteer", "label": "HDR", "index": 264},
-        3: {"variable": "MarkRng", "label": "", "index": 105}  } ,
+        3: {"variable": "MarkRng", "label": "Range", "index": 105}  } ,
      "crew": { 1: {"variable": "BSP", "label": "", "index": 1},
         2: {"variable": "MarkRng", "label": "RNG", "index": 105},
         3: {"variable": "MarkTime", "label": "", "index": 88} },
@@ -71,7 +71,7 @@ def signal_handler(sig, frame):
     client.close() # not shutdown as this is a broadcast stream
     cnt = 0
     for ent in expdata:
-        if (ent["value"] > 0):
+        if (ent["value"] != 0):
             print (ent["name"], ent["value"])
             cnt = cnt + 1
     print ("Found: ", cnt)
@@ -113,12 +113,12 @@ def findMetric (idx):
     return lab, val
 
 def createProf():
-    js = '{ "profiles": {' # the prefix
+    js = '{ "profiles": [' # the prefix
     for prof in profilesext:
         cnt = 0
         if (len(js) > 20):
             js = js + ',\n'
-        js = js + '"' + prof + '": {'
+        js = js + '{ "label": "' + prof + '", '
         # we now have the profile
         for metric in profilesext[prof]:
             if cnt > 0:
@@ -133,11 +133,11 @@ def createProf():
             #print(prof, tag, val)
             #lab = expdata[prof[metric]]["name"]
             #val = expdata[prof[metric]]["value"]
-            js = js + '"' + tag + '": ,"' + str(val) + '"'
+            js = js + '"' + tag + '": ' + str(val)
             cnt = cnt + 1
         js = js + ' }'
 
-    js = js + '\n} }'
+    js = js + '\n] }'
     return js
 
 '''
