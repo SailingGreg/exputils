@@ -6,6 +6,7 @@
 import sys
 import signal
 import socket
+#import thread
 
 # import the UDP_IP and UDP_PORT
 from expconf import *
@@ -55,7 +56,7 @@ profilesext = {
         2: {"variable": "MarkRng", "label": "RNG", "index": 105},
         3: {"variable": "MarkTime", "label": "", "index": 88} },
      "nav": {  1: {"variable": "BSP", "label": "", "index": 1},
-        2: {"variable": "MarkBrg", "label": "", "index": 106},
+        2: {"variable": "MarkBrg", "label": "Bearing", "index": 106},
         3: {"variable": "Cog", "label": "COG", "index": 50},
         4:  {"variable": "Sog", "label": "SOG", "index": 51},
         5: {"variable": "Lat", "label": "LAT", "index": 48},
@@ -140,33 +141,48 @@ def createProf():
     js = js + '\n] }'
     return js
 
-'''
-    for prof in profiles:
-        cnt = 0
-        #if (prof["profile"] == pr): # found
-        if (len(js) > 20):
-            js = js + ',\n'
-        js = js + '"' + prof["profile"] + '": {'
-        for m in range(4): # interate over the 4 entries
-            metric = "metric" + str(m) # this will metric0 - metric3
-            if (prof[metric] > 0): # if the index is non zero
-                if cnt > 0:
-                    js = js + ', '
-                #lab, val = findMetric(prof[metric])
-                #idx = prof[metric]
-                lab = expdata[prof[metric]]["name"]
-                val = expdata[prof[metric]]["value"]
-                js = js + '"' + lab + '": ,"' + str(val) + '"'
-                cnt = cnt + 1
-            #print (prof)
-        js = js + ' }'
-        #break;
-'''
-
 # end createProfile
 
 # SIGINT
 signal.signal(signal.SIGINT, signal_handler)
+
+'''
+# this runs on a thread and services data calls
+# the assumption is that the bluetooth devices have been paired
+# we put the bluetooth side on a thread as the concurrency is lower
+def btServer():
+    # s = socket.socket( STEAM, BTPROTO_RFCOMM)
+
+    # bind & listen
+    # s.bind((btAddr, 5)) # add try/except
+    # s.listen(3)
+
+    while (True):
+        conn, addr = s.accept()
+
+        # need to recv & send profiles
+        data = s.recv(1024)
+        data.decode() # byte to string
+
+        # decode() and check request is 'profiles'
+        # if (data == 'profiles'):
+
+            # then send
+            #json = createProf()
+            #json.encode()
+            #s.send(json) # client closes connection
+
+        s.close
+# end of server
+'''
+
+
+'''
+# create a thread for the BT side
+th = thread.Thread(target = btServer)
+th.daemon = True
+th.start()
+'''
 
 # network setup
 client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP) # UDP
