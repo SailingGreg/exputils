@@ -147,7 +147,7 @@ def createProf():
 signal.signal(signal.SIGINT, signal_handler)
 
 '''
-# this runs on a thread and services data calls
+# this runs on a thread and services data calls via SPP
 # the assumption is that the bluetooth devices have been paired
 # we put the bluetooth side on a thread as the concurrency is lower
 def btServer():

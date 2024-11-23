@@ -1,11 +1,15 @@
 #
-# parse Expedition's UsrChannels.h and create python structure
-# this is imported to support the client element 
+# parse Expedition's UsrChannels.h and create a python data structure
+# this is imported to support the client element
+#
+# from expchdata import expdata # load the the data channels
 #
 import os
 
-exploc = "C:\Program Files (x86)\Expedition\Expedition4D"
-fname = "UsrChannels.h"
+#exploc = "C:\Program Files (x86)\Expedition\Expedition4D"
+#fname = "UsrChannels.h"
+exploc = "C:\Program Files\Expedition\Expedition"
+fname = "user_channels.h"
 foutput = "expchdata.py"
 
 # open and read file
@@ -36,6 +40,8 @@ with open(fname, "r") as fi:
                 vname = var[0].removeprefix("\tEx")
                 #print (vname, var)
 
+                # add check for calculated variables which have '=' in the string
+                # if '=' in string then split vname again
                 if (cnt > 0):
                     fo.write(",\n")
                 #print ('    {"metric": %d, "name": "%s", "value": 0}' % (cnt, vname))

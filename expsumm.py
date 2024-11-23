@@ -19,7 +19,7 @@ from openpyxl.styles import Color, PatternFill, Font, Border
 TWSCOL = 4
 TWACOL = 6
 
-# The input is the CSV file
+# The input is the CSV file - default for testing
 fname = "fastnet 210327 leg1"
 
 # and the output an Excel spreashsheet
